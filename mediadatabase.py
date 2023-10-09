@@ -4,7 +4,6 @@ from selenium.webdriver.support.select import Select
 from selenium.webdriver.common.keys import Keys
 from time import time, sleep
 
-
 class mediadatabase:
 	def __init__(self):
 		options = Options()
@@ -109,6 +108,9 @@ class mediadatabase:
 
 		print(time()-s)
 
+	def searchbytag(self, tags):
+		pass
+
 	def updatestatus(self, link, cat, status="completed", epno=0):
 		if(cat == "anime"):
 			pass
@@ -150,6 +152,7 @@ class mediadatabase:
 	def getmediadata(self, link, entityno, cat):
 		if(cat == "imdb"):
 			self.driver.get(self.searchpagelink_movie)
+			print("Gathering data in IMDB")
 			while(True):
 				try:
 					entity = f'//*[@id="__next"]/main/div[2]/div[3]/section/div/div[1]/section[2]/div[2]/ul/li[{entityno+1}]'
@@ -163,21 +166,26 @@ class mediadatabase:
 				except:
 					pass
 		else:
-			anime_name = ""
-			total_ep = 0
-			synopsis = ""
-			posterlink = ""
-			anime_information = {}
+			anime_data = {}
 			anime_userdata = {}
 
 			#self.driver.get(self.searchpagelink_anime)
 			self.driver.get(link)
+			print("Gathering data in MAL")
 			while(True):
 				try:
-					anime_name = self.driver.find_element("xpath", '//*[@id="contentWrapper"]/div[1]/div/div[1]/div/h1/strong').text
-					total_ep = self.driver.find_element("xpath", '//*[@id="curEps"]').text
-					synopsis = self.driver.find_element("xpath", '//*[@id="content"]/table/tbody/tr/td[2]/div[1]/table/tbody/tr[1]/td/p').text
-					posterlink = self.driver.find_element("xpath", '//*[@id="content"]/table/tbody/tr/td[1]/div/div[1]/a/img').get_attribute("src")
+					anime_data["name"] = self.driver.find_element("xpath", '//*[@id="contentWrapper"]/div[1]/div/div[1]/div/h1/strong').text
+					anime_data["synopsis"] = self.driver.find_element("xpath", '//*[@id="content"]/table/tbody/tr/td[2]/div[1]/table/tbody/tr[1]/td/p').text
+					anime_data["posterlink"] = self.driver.find_element("xpath", '//*[@id="content"]/table/tbody/tr/td[1]/div/div[1]/a/img').get_attribute("src")
+					
+					info = '//*[@id="content"]/table/tbody/tr/td[1]/div/div['
+					i = 5
+					while("Type" not in self.driver.find_element("xpath", info+str(i)+"]").text):
+						i += 1
+					anime_information = [self.driver.find_element("xpath", info+str(i)+"]").text]
+					while("Favorites" not in anime_information[len(anime_information)-1]):
+						i += 1
+						anime_information.append(self.driver.find_element("xpath", info+str(i)+"]").text)
 
 					userstatus = Select(self.driver.find_element("xpath", '//*[@id="myinfo_status"]'))
 					userstatus = userstatus.first_selected_option.text
@@ -185,13 +193,32 @@ class mediadatabase:
 					userscore = Select(self.driver.find_element("xpath", '//*[@id="myinfo_score"]'))
 					userscore = userscore.first_selected_option.text
 
-					anime_userdata["Status"] = userstatus
-					anime_userdata["Eps Seen"] = self.driver.find_element("xpath", '//*[@id="myinfo_watchedeps"]').get_attribute('value')+f"/{total_ep}"
-					anime_userdata["Your Score"] = userscore
+					anime_userdata["status"] = userstatus
+					anime_userdata["eps Seen"] = self.driver.find_element("xpath", '//*[@id="myinfo_watchedeps"]').get_attribute('value')
+					anime_userdata["your Score"] = userscore
 					
-					anime_data = [anime_name, posterlink, total_ep, synopsis, anime_userdata]
-					print(anime_data)
+					anime_data["information"] = anime_information
+					anime_data["userdata"] = anime_userdata
 
+					if("Status: Currently Airing" == anime_information[2]):
+						self.driver.get('https://animeschedule.net/')
+						self.driver.find_element("xpath", '//*[@id="header-search-bar"]').send_keys(anime_data["name"])
+						self.driver.find_element("xpath", '//*[@id="header-search-submit"]').click()
+						n = 0
+						while(n < 5):
+							try:
+								anime_data["next ep"] = self.driver.find_element("xpath", '//*[@id="release-time-subs"]').text+" ["+self.driver.find_element("xpath", '//*[@id="countdown-wrapper"]/div[2]/time').text+"]"
+								break
+							except:
+								n += 1
+								
+					print(anime_data["name"])
+					print(anime_data["synopsis"])
+					print(anime_data["posterlink"])
+					for i in anime_information:
+						print(i)
+					if("next ep" in anime_data):
+						print(anime_data["next ep"])
 					break
 				except Exception as err:
 					print(err)
@@ -199,7 +226,15 @@ class mediadatabase:
 			
 
 a = mediadatabase()
-#a.setup("", "", "", "")
+a.setup("", "", "", "")
 #name = input("Enter movie name: ")
 #a.searchmeida(name, "all")
-a.getmediadata("https://myanimelist.net/anime/49387/Vinland_Saga_Season_2", 1, cat="mal")
+l = ['https://myanimelist.net/anime/40357/Tate_no_Yuusha_no_Nariagari_Season_3', 'https://myanimelist.net/anime/53887/Spy_x_Family_Season_2', 'https://myanimelist.net/anime/47160/Goblin_Slayer_II', 'https://myanimelist.net/anime/54595/Kage_no_Jitsuryokusha_ni_Naritakute_2nd_Season', 'https://myanimelist.net/anime/52991/Sousou_no_Frieren', 'https://myanimelist.net/anime/55644/Dr_Stone__New_World_Part_2', 'https://myanimelist.net/anime/54918/Tokyo_Revengers__Tenjiku-hen', 'https://myanimelist.net/anime/52741/Undead_Unluck', 'https://myanimelist.net/anime/52990/Keikenzumi_na_Kimi_to_Keiken_Zero_na_Ore_ga_Otsukiai_suru_Hanashi', 'https://myanimelist.net/anime/50664/Saihate_no_Paladin__Tetsusabi_no_Yama_no_Ou']
+ts = 0
+for i in l:
+	s = time()
+	a.getmediadata(i, 1, cat="mal")
+	e = time() - s
+	print(e, "\n")
+	ts += e
+print(ts/len(l))
