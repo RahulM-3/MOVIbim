@@ -10,6 +10,10 @@ class mediadatabase:
 		options.add_argument(r"user-data-dir=~/.var/app/com.google.Chrome/config/google-chrome")
 		options.add_argument(r"profile-directory=Profile 1")
 		#options.add_argument('--headless')
+		options.add_argument("--window-size=20000,20000")
+		options.add_argument("--disable-gpu")
+		options.add_argument('--no-sandbox')
+		options.add_argument('--lang=en_US')
 		options.add_experimental_option('detach', True)
 		user_agent = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/60.0.3112.50 Safari/537.36'
 		options.add_argument(f'user-agent={user_agent}')
@@ -20,7 +24,7 @@ class mediadatabase:
 
 	def setup(self, imdb_username, imdb_pass, mal_username, mal_pass):
 		mal = 'https://myanimelist.net/login.php?from=%2F&'
-		imdb = 'https://www.imdb.com/ap/signin?openid.pape.max_auth_age=0&openid.return_to=https%3A%2F%2Fwww.imdb.com%2Fregistration%2Fap-signin-handler%2Fimdb_us&openid.identity=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.assoc_handle=imdb_us&openid.mode=checkid_setup&siteState=eyJvcGVuaWQuYXNzb2NfaGFuZGxlIjoiaW1kYl91cyIsInJlZGlyZWN0VG8iOiJodHRwczovL3d3dy5pbWRiLmNvbS8_cmVmXz1sb2dpbiJ9&openid.claimed_id=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0%2Fidentifier_select&openid.ns=http%3A%2F%2Fspecs.openid.net%2Fauth%2F2.0&tag=imdbtag_reg-20'
+		imdb = 'https://www.imdb.com/'
 		self.driver.get(mal)
 		if("Login - MyAnimeList.net" == self.driver.title):
 			print("Logging in [MAL]")
@@ -36,7 +40,7 @@ class mediadatabase:
 				except:
 					pass
 
-		self.driver.get('https://www.imdb.com/')
+		self.driver.get(imdb)
 		if("Sign" in self.driver.find_element("xpath", '//*[@id="imdbHeader"]/div[2]/div[5]').text):
 			print("Logging in [IMDB]")
 			self.driver.get(imdb)
@@ -151,25 +155,97 @@ class mediadatabase:
 
 	def getmediadata(self, link, entityno, cat):
 		if(cat == "imdb"):
-			self.driver.get(self.searchpagelink_movie)
+			movie_data = {}
+			movie_userdata = {}
+
+			#self.driver.get(self.searchpagelink_movie)
+			#while(True):
+			#	try:
+			#		entity = f'//*[@id="__next"]/main/div[2]/div[3]/section/div/div[1]/section[2]/div[2]/ul/li[{entityno+1}]'
+			#		self.driver.find_element("xpath", entity).click()
+			#		break
+			#	except:
+			#		pass
+
+			self.driver.get(link)
 			print("Gathering data in IMDB")
 			while(True):
 				try:
-					entity = f'//*[@id="__next"]/main/div[2]/div[3]/section/div/div[1]/section[2]/div[2]/ul/li[{entityno+1}]'
-					self.driver.find_element("xpath", entity).click()
+					info = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[2]/div[1]').text.split("\n"))
+					movie_data["name"] = info[0]
+					if("Original title" in info[1]):
+						movie_data["original title"] = info[1]
+						movie_data["year"] = info[2]
+						movie_data["rating"] = info[3]
+						movie_data["duration"] = info[4]
+					else:
+						movie_data["year"] = info[1]
+						movie_data["rating"] = info[2]
+						movie_data["duration"] = info[3]
+					movie_data["synopsis"] = self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[1]/section/p/span[3]').text
+					movie_data["director"] = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[1]/section/div[2]/div/ul/li[1]/div/ul').text.split(" "))
+					movie_data["writer"] = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[1]/section/div[2]/div/ul/li[2]/div/ul').text.split(" "))
+					movie_data["main cast"] = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[1]/section/div[2]/div/ul/li[3]/div/ul').text.split(" "))
+					movie_data["genre"] = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[1]/section/div[1]/div[2]').text.split("\n"))
+					rawdata = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[2]/div[2]/div/div[1]/a/span/div/div[2]').text.split("\n"))
+					movie_data["imdb rating"] = rawdata[0]+rawdata[1]+" By "+rawdata[2]+" Users"
+					try:
+						rawdata = list(self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[2]/div[2]/div/div[3]/a/span/div/div[2]').text.split("\n"))
+						movie_data["popularity"] = rawdata
+					except:
+						pass
+
+					movie_userdata["userstatus"] = self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[3]/div[2]/div[2]/div[3]/div/div/button[1]/div/div[1]').text
+					if(movie_userdata["userstatus"] == "In Watchlist"):
+						movie_userdata["userstatus"] = "Plan to watch"
+					else:
+						movie_userdata["userstatus"] = ""
+					movie_userdata["your rating"] = self.driver.find_element("xpath", '//*[@id="__next"]/main/div/section[1]/section/div[3]/section/section/div[2]/div[2]/div/div[2]/button/span/div/div[2]/div').text.replace("\n", "")
+					movie_data["user data"] = movie_userdata
+
+					self.driver.get('https://hide.me/en/proxy')
+					moviename = movie_data["name"].replace(" ", "-")
+					replacethis = [":", "'", "?"]
+					for c in replacethis:
+						moviename = moviename.replace(c, "")
+					moviename = "https://yts.mx/movies/"+moviename.lower()+"-"+movie_data["year"]
+					self.driver.find_element("xpath", '//*[@id="u"]').send_keys(moviename)
+					self.driver.find_element("xpath", '//*[@id="u"]').send_keys(Keys.ENTER)
+					while(True):
+						try:
+							movie_data["posterlink"] = self.driver.find_element("xpath", '//*[@id="movie-poster"]/img').get_attribute('src')
+							movie_data["donwload"] = {}
+							for i in range(1, 5):
+								try:
+									movie_data["donwload"][self.driver.find_element("xpath", f'//*[@id="movie-info"]/p/a[{i}]').text] = f'//*[@id="movie-info"]/p/a[{i}]'
+									#self.driver.find_element("xpath", f'//*[@id="movie-info"]/p/a[{i}]').click()
+								except:
+									break
+							break
+						except Exception as err:
+							print(err)
+							pass
+
+					for k, v in movie_data.items():
+						print(k, v)
+					
 					break
-				except:
-					pass
-			while(True):
-				try:
-					pass
-				except:
+				except Exception as err:
+					print(err)
 					pass
 		else:
 			anime_data = {}
 			anime_userdata = {}
 
 			#self.driver.get(self.searchpagelink_anime)
+			#while(True):
+			#	try:
+			#		entity = f'//*[@id="content"]/div[6]/table/tbody/tr[{entityno}]'
+			#		self.driver.find_element("xpath", entity).click()
+			#		break
+			#	except:
+			#		pass
+
 			self.driver.get(link)
 			print("Gathering data in MAL")
 			while(True):
@@ -211,14 +287,6 @@ class mediadatabase:
 								break
 							except:
 								n += 1
-								
-					print(anime_data["name"])
-					print(anime_data["synopsis"])
-					print(anime_data["posterlink"])
-					for i in anime_information:
-						print(i)
-					if("next ep" in anime_data):
-						print(anime_data["next ep"])
 					break
 				except Exception as err:
 					print(err)
@@ -226,15 +294,19 @@ class mediadatabase:
 			
 
 a = mediadatabase()
-a.setup("", "", "", "")
+#a.setup("", "", "", "")
 #name = input("Enter movie name: ")
 #a.searchmeida(name, "all")
-l = ['https://myanimelist.net/anime/40357/Tate_no_Yuusha_no_Nariagari_Season_3', 'https://myanimelist.net/anime/53887/Spy_x_Family_Season_2', 'https://myanimelist.net/anime/47160/Goblin_Slayer_II', 'https://myanimelist.net/anime/54595/Kage_no_Jitsuryokusha_ni_Naritakute_2nd_Season', 'https://myanimelist.net/anime/52991/Sousou_no_Frieren', 'https://myanimelist.net/anime/55644/Dr_Stone__New_World_Part_2', 'https://myanimelist.net/anime/54918/Tokyo_Revengers__Tenjiku-hen', 'https://myanimelist.net/anime/52741/Undead_Unluck', 'https://myanimelist.net/anime/52990/Keikenzumi_na_Kimi_to_Keiken_Zero_na_Ore_ga_Otsukiai_suru_Hanashi', 'https://myanimelist.net/anime/50664/Saihate_no_Paladin__Tetsusabi_no_Yama_no_Ou']
-ts = 0
-for i in l:
-	s = time()
-	a.getmediadata(i, 1, cat="mal")
-	e = time() - s
-	print(e, "\n")
-	ts += e
-print(ts/len(l))
+
+a.getmediadata("https://www.imdb.com/title/tt2409302/?ref_=fn_al_tt_1", 1, cat="imdb")
+#a.getmediadata("https://www.imdb.com/title/tt0180093/?ref_=hm_tpks_tt_i_5_pd_tp1_pbr", 1, cat="imdb")
+
+#l = ['https://myanimelist.net/anime/40357/Tate_no_Yuusha_no_Nariagari_Season_3', 'https://myanimelist.net/anime/53887/Spy_x_Family_Season_2', 'https://myanimelist.net/anime/47160/Goblin_Slayer_II', 'https://myanimelist.net/anime/54595/Kage_no_Jitsuryokusha_ni_Naritakute_2nd_Season', 'https://myanimelist.net/anime/52991/Sousou_no_Frieren', 'https://myanimelist.net/anime/55644/Dr_Stone__New_World_Part_2', 'https://myanimelist.net/anime/54918/Tokyo_Revengers__Tenjiku-hen', 'https://myanimelist.net/anime/52741/Undead_Unluck', 'https://myanimelist.net/anime/52990/Keikenzumi_na_Kimi_to_Keiken_Zero_na_Ore_ga_Otsukiai_suru_Hanashi', 'https://myanimelist.net/anime/50664/Saihate_no_Paladin__Tetsusabi_no_Yama_no_Ou']
+#ts = 0
+#for i in l:
+#	s = time()
+#	a.getmediadata(i, 1, cat="mal")
+#	e = time() - s
+#	print(e, "\n")
+#	ts += e
+#print(ts/len(l))
